@@ -202,6 +202,14 @@ sudo "\$SCRIPT_DIR/venv/bin/python" "\$SCRIPT_DIR/$MAIN_SCRIPT" "\$@"
 EOF
 chmod +x run.sh
 
+# Создание дополнительного скрипта для простой версии
+cat > run_simple.sh << 'EOF'
+#!/bin/bash
+SCRIPT_DIR="\$(cd "\$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
+sudo "\$SCRIPT_DIR/venv/bin/python" "\$SCRIPT_DIR/vl53l1x_simple.py" "\$@"
+EOF
+chmod +x run_simple.sh
+
 deactivate
 
 echo ""
