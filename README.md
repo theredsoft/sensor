@@ -9,12 +9,20 @@
 git clone https://github.com/theredsoft/sensor.git
 cd sensor
 
-# Установка зависимостей
-pip3 install -r requirements.txt
+# Автоматическая установка (рекомендуется для новых версий OS)
+bash quick_install.sh
 
-# Запуск датчика расстояния VL53L1X
-sudo python3 vl53l1x_sensor_reader.py
+# Запуск датчика после установки
+./run_sensor.sh
+
+# Или расширенная версия
+./run_advanced.sh --help
 ```
+
+### ⚠️ Важно для новых версий Raspberry Pi OS (Bookworm и новее)
+
+Начиная с Debian 12 (Bookworm), система защищает системные пакеты Python (PEP 668).
+Используйте `quick_install.sh` который автоматически создаст виртуальное окружение.
 
 ## Поддерживаемые датчики
 
@@ -53,18 +61,29 @@ sudo raspi-config nonint do_i2c 0
 
 ### 3. Установка зависимостей
 
+#### Автоматическая установка (рекомендуется):
+```bash
+# Запустите скрипт быстрой установки
+bash quick_install.sh
+```
+
+#### Ручная установка:
 ```bash
 # Обновление системы
 sudo apt update
-sudo apt upgrade
 
 # Установка инструментов I2C
-sudo apt install -y python3-pip i2c-tools python3-smbus
+sudo apt install -y python3-pip python3-venv i2c-tools python3-smbus
 
 # Проверка подключения датчика (должен показать адрес 0x29)
-i2cdetect -y 1
+sudo i2cdetect -y 1
 
-# Установка библиотеки VL53L1X
+# Для новых версий OS (Bookworm+) - создание виртуального окружения
+python3 -m venv venv
+source venv/bin/activate
+pip install vl53l1x
+
+# Для старых версий OS - прямая установка
 pip3 install vl53l1x
 ```
 
@@ -182,6 +201,28 @@ for line in process.stdout:
 ```
 
 ## Устранение неполадок
+
+### Ошибка "externally-managed-environment" при установке
+
+Эта ошибка появляется в новых версиях Raspberry Pi OS (Bookworm и новее):
+```
+error: externally-managed-environment
+× This environment is externally managed
+```
+
+**Решение:**
+```bash
+# Используйте скрипт быстрой установки
+bash quick_install.sh
+
+# Или создайте виртуальное окружение вручную
+python3 -m venv venv
+source venv/bin/activate
+pip install vl53l1x
+
+# Запуск с виртуальным окружением
+sudo venv/bin/python vl53l1x_sensor_reader.py
+```
 
 ### Датчик не обнаруживается
 ```bash

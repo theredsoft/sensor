@@ -39,7 +39,84 @@ sudo usermod -a -G i2c $USER
 
 # Установка Python зависимостей
 echo "5. Установка Python библиотек..."
-pip3 install -r requirements.txt
+
+# Проверка версии Debian/Raspberry Pi OS для определения метода установки
+if python3 -c "import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)" 2>/dev/null; then
+    # Новая версия с PEP 668 (externally-managed-environment)
+    echo "Обнаружена новая версия Python с защитой системных пакетов."
+    echo "Выберите метод установки:"
+    echo "1. Использовать виртуальное окружение (рекомендуется)"
+    echo "2. Установить через apt (если доступно)"
+    echo "3. Принудительная установка pip (может нарушить систему)"
+    read -p "Ваш выбор (1-3): " -n 1 -r install_choice
+    echo
+
+    case $install_choice in
+        1)
+            echo "Создание виртуального окружения..."
+            # Установка python3-venv если не установлен
+            sudo apt install -y python3-venv python3-full
+
+            # Создание виртуального окружения
+            python3 -m venv venv
+
+            # Активация и установка
+            source venv/bin/activate
+            pip install --upgrade pip
+            pip install -r requirements.txt
+
+            echo ""
+            echo "✅ Библиотеки установлены в виртуальное окружение"
+            echo "Для запуска скриптов используйте:"
+            echo "  source venv/bin/activate"
+            echo "  sudo venv/bin/python vl53l1x_sensor_reader.py"
+
+            # Создание скрипта запуска
+            cat > run_sensor.sh << 'EOF'
+#!/bin/bash
+# Скрипт запуска датчика с виртуальным окружением
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+sudo "$SCRIPT_DIR/venv/bin/python" "$SCRIPT_DIR/vl53l1x_sensor_reader.py" "$@"
+EOF
+            chmod +x run_sensor.sh
+
+            echo "Или используйте скрипт-обертку:"
+            echo "  ./run_sensor.sh"
+            ;;
+
+        2)
+            echo "Попытка установки через apt..."
+            # VL53L1X обычно недоступен через apt, поэтому используем pipx
+            sudo apt install -y pipx python3-smbus
+            pipx install vl53l1x
+
+            if [ $? -ne 0 ]; then
+                echo "⚠️  Пакет недоступен через apt"
+                echo "Используйте виртуальное окружение (вариант 1)"
+            fi
+            ;;
+
+        3)
+            echo "⚠️  ВНИМАНИЕ: Принудительная установка может нарушить систему!"
+            read -p "Вы уверены? (y/n): " -n 1 -r
+            echo
+            if [[ $REPLY =~ ^[Yy]$ ]]; then
+                pip3 install --break-system-packages -r requirements.txt
+            else
+                echo "Установка отменена"
+                exit 1
+            fi
+            ;;
+
+        *)
+            echo "Неверный выбор"
+            exit 1
+            ;;
+    esac
+else
+    # Старая версия без защиты
+    pip3 install -r requirements.txt
+fi
 
 # Проверка подключения датчика
 echo "6. Проверка I2C устройств..."
