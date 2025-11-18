@@ -9,9 +9,11 @@
 # Comment out if using Python <= 3.12:
 adafruit-circuitpython-vl53l1x>=1.1.0
 adafruit-blinka>=8.0.0
+# lgpio  # May need manual installation - see install_lgpio.sh
+# RPi.GPIO>=0.7.0  # Alternative GPIO library
 
 # For I2C communication (required for all versions)
-smbus2>=0.4.0
+smbus2>=0.4.0  # REQUIRED - used by vl53l1x_simple.py
 
 # Optional: for data visualization (if you want to add graphs)
 # matplotlib>=3.5.0

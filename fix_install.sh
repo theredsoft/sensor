@@ -94,7 +94,21 @@ EOF
     2)
         echo "Метод 2: Установка Adafruit библиотеки..."
 
-        pip install adafruit-circuitpython-vl53l1x
+        # Установка системных зависимостей для lgpio
+        echo "Установка системных зависимостей..."
+        sudo apt install -y python3-lgpio || {
+            # Если lgpio недоступен через apt, компилируем из исходников
+            echo "Компиляция lgpio из исходников..."
+            wget http://abyz.me.uk/lg/lg.tar.gz
+            tar -xzf lg.tar.gz
+            cd lg
+            make
+            sudo make install
+            cd ..
+            rm -rf lg lg.tar.gz
+        }
+
+        pip install RPi.GPIO adafruit-circuitpython-vl53l1x lgpio
 
         if [ $? -eq 0 ]; then
             echo -e "${GREEN}✅ Установка успешна!${NC}"
