@@ -9,14 +9,17 @@
 git clone https://github.com/theredsoft/sensor.git
 cd sensor
 
+# Настройка I2C (если еще не настроено)
+bash setup_i2c.sh
+
 # Установка только необходимых зависимостей
 python3 -m venv venv
 source venv/bin/activate
 pip install smbus2
 deactivate
 
-# Запуск простой версии (рекомендуется!)
-sudo venv/bin/python vl53l1x_simple.py
+# Запуск минимальной версии (САМАЯ НАДЕЖНАЯ!)
+sudo venv/bin/python vl53l1x_minimal.py
 ```
 
 ### Альтернативная установка с автоматическим скриптом
@@ -233,7 +236,8 @@ for line in process.stdout:
 
 | Скрипт | Когда использовать | Зависимости |
 |--------|-------------------|-------------|
-| **vl53l1x_simple.py** | ✅ РЕКОМЕНДУЕТСЯ для всех версий | Только smbus2 |
+| **vl53l1x_minimal.py** | ✅ САМЫЙ НАДЕЖНЫЙ - работает везде | Только smbus2 |
+| vl53l1x_simple.py | Упрощенная версия | Только smbus2 |
 | vl53l1x_sensor_reader.py | Python ≤3.12 | Оригинальная vl53l1x |
 | vl53l1x_adafruit.py | Если нужны расширенные функции | Adafruit + lgpio |
 | vl53l1x_advanced.py | Python ≤3.12, расширенные функции | Оригинальная vl53l1x |
