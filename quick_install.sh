@@ -73,7 +73,46 @@ fi
 echo "Установка библиотек в виртуальное окружение..."
 source venv/bin/activate
 pip install --upgrade pip > /dev/null 2>&1
-pip install vl53l1x smbus2 || error_exit "Не удалось установить Python библиотеки"
+
+# Установка зависимостей для компиляции
+echo "Установка зависимостей для компиляции..."
+sudo apt install -y build-essential python3-dev || warning_msg "Не удалось установить пакеты для компиляции"
+
+# Попытка установки vl53l1x
+echo "Установка библиотеки vl53l1x..."
+if ! pip install vl53l1x smbus2 2>/dev/null; then
+    warning_msg "Стандартная установка не удалась, пробуем альтернативный метод..."
+
+    # Альтернативный метод - установка из исходников с патчем
+    echo "Загрузка и компиляция из исходников..."
+
+    # Клонирование репозитория
+    if [ -d "vl53l1x-python" ]; then
+        rm -rf vl53l1x-python
+    fi
+
+    git clone https://github.com/pimoroni/vl53l1x-python.git
+    cd vl53l1x-python
+
+    # Патч для Python 3.13 (исправление проблемы с usleep)
+    if grep -q "usleep" api/platform/vl53l1_platform.c 2>/dev/null; then
+        echo "Применение патча для совместимости..."
+        sed -i '1i#define _GNU_SOURCE' api/platform/vl53l1_platform.c
+    fi
+
+    # Сборка и установка
+    pip install . || {
+        # Если все еще не работает, используем предкомпилированную версию или Python-only библиотеку
+        warning_msg "Компиляция не удалась. Пробуем альтернативную библиотеку..."
+        pip install adafruit-circuitpython-vl53l1x || {
+            error_exit "Не удалось установить библиотеку VL53L1X. Попробуйте использовать более старую версию Python (3.11 или ниже)"
+        }
+        ALTERNATIVE_LIB=true
+    }
+
+    cd ..
+fi
+
 deactivate
 
 success_msg "Библиотеки установлены"

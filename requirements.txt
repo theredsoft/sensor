@@ -1,10 +1,16 @@
 # Requirements for VL53L1X Distance Sensor scripts
-# Install with: pip3 install -r vl53l1x_requirements.txt
+# Install with: pip3 install -r requirements.txt
 
-# Main library for VL53L1X sensor
-vl53l1x>=0.0.5
+# For Python 3.12 and older - original library
+# Uncomment if using Python <= 3.12:
+# vl53l1x>=0.0.5
 
-# Optional: for enhanced I2C communication
+# For Python 3.13+ - use Adafruit library instead
+# Comment out if using Python <= 3.12:
+adafruit-circuitpython-vl53l1x>=1.1.0
+adafruit-blinka>=8.0.0
+
+# For I2C communication (required for all versions)
 smbus2>=0.4.0
 
 # Optional: for data visualization (if you want to add graphs)

@@ -21,8 +21,9 @@ bash quick_install.sh
 
 ### ⚠️ Важно для новых версий Raspberry Pi OS (Bookworm и новее)
 
-Начиная с Debian 12 (Bookworm), система защищает системные пакеты Python (PEP 668).
-Используйте `quick_install.sh` который автоматически создаст виртуальное окружение.
+1. **Python 3.13+**: Оригинальная библиотека vl53l1x не компилируется. Используйте `fix_install.sh` для автоматического исправления.
+2. **PEP 668**: Система защищает системные пакеты Python. Используйте виртуальные окружения.
+3. **Альтернатива**: Для Python 3.13+ доступен скрипт `vl53l1x_adafruit.py` с библиотекой Adafruit.
 
 ## Поддерживаемые датчики
 
@@ -201,6 +202,35 @@ for line in process.stdout:
 ```
 
 ## Устранение неполадок
+
+### Ошибка компиляции на Python 3.13+
+
+При установке на Python 3.13 может возникнуть ошибка:
+```
+error: implicit declaration of function 'usleep'
+```
+
+**Решения:**
+
+1. **Используйте скрипт исправления:**
+```bash
+bash fix_install.sh
+# Выберите вариант 4 для автоматического поиска решения
+```
+
+2. **Используйте альтернативную библиотеку Adafruit:**
+```bash
+pip install adafruit-circuitpython-vl53l1x
+sudo venv/bin/python vl53l1x_adafruit.py
+```
+
+3. **Установите из исходников с патчем:**
+```bash
+git clone https://github.com/pimoroni/vl53l1x-python.git
+cd vl53l1x-python
+sed -i '1i#define _GNU_SOURCE' api/platform/vl53l1_platform.c
+pip install .
+```
 
 ### Ошибка "externally-managed-environment" при установке
 
