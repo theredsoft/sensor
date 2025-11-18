@@ -22,18 +22,31 @@ class VL53L1XSimple:
     # I2C адреса и регистры VL53L1X
     DEFAULT_ADDRESS = 0x29
 
-    # Основные регистры
-    SYSTEM__MODE_START = 0x87
-    RESULT__RANGE_STATUS = 0x89
-    RESULT__FINAL_CROSSTALK_CORRECTED_RANGE_MM_SD0 = 0x96
-    SYSTEM__INTERRUPT_CLEAR = 0x86
-    PHASECAL_CONFIG__TIMEOUT_MACROP = 0x8F
-    RANGE_CONFIG__TIMEOUT_MACROP_A_HI = 0x5E
-    RANGE_CONFIG__TIMEOUT_MACROP_A_LO = 0x5F
-    RANGE_CONFIG__TIMEOUT_MACROP_B_HI = 0x60
-    RANGE_CONFIG__TIMEOUT_MACROP_B_LO = 0x61
-    RANGE_CONFIG__VCSEL_PERIOD_A = 0x62
-    RANGE_CONFIG__VCSEL_PERIOD_B = 0x63
+    # Основные регистры VL53L1X
+    SOFT_RESET = 0x0000
+    I2C_SLAVE_DEVICE_ADDRESS = 0x0001
+    VHV_CONFIG_INIT = 0x0001
+    SYSTEM_INTERRUPT_CLEAR = 0x0086
+    SYSTEM_MODE_START = 0x0087
+    RESULT_RANGE_STATUS = 0x0089
+    RESULT_FINAL_CROSSTALK_CORRECTED_RANGE_MM_SD0 = 0x0096
+    GPIO_HV_MUX_CTRL = 0x0030
+    GPIO_TIO_HV_STATUS = 0x0031
+    SYSTEM_INTERRUPT_CONFIG_GPIO = 0x0046
+
+    # Регистры для инициализации
+    ALGO_PART_TO_PART_RANGE_OFFSET_MM = 0x001E
+    MM_CONFIG_OUTER_OFFSET_MM = 0x0022
+    RANGE_CONFIG_VCSEL_PERIOD_A = 0x0060
+    RANGE_CONFIG_TIMEOUT_MACROP_A = 0x005E
+    RANGE_CONFIG_VCSEL_PERIOD_B = 0x0063
+    RANGE_CONFIG_TIMEOUT_MACROP_B = 0x0061
+    RANGE_CONFIG_VALID_PHASE_HIGH = 0x0069
+    PHASECAL_CONFIG_TIMEOUT_MACROP = 0x004B
+    SYSTEM_THRESH_HIGH = 0x0072
+    SYSTEM_THRESH_LOW = 0x0074
+    DSS_CONFIG_MANUAL_EFFECTIVE_SPADS_SELECT = 0x0054
+    DSS_CONFIG_ROI_MODE_CONTROL = 0x004D
 
     def __init__(self, i2c_bus=1, address=DEFAULT_ADDRESS):
         """
@@ -48,55 +61,135 @@ class VL53L1XSimple:
         self.i2c_bus = i2c_bus
 
     def init(self):
-        """Инициализация I2C соединения"""
+        """Инициализация I2C соединения и датчика"""
         try:
             self.bus = SMBus(self.i2c_bus)
             print(f"I2C шина {self.i2c_bus} открыта")
 
             # Проверка присутствия датчика
             try:
-                # Попытка чтения из регистра
-                self.bus.read_byte_data(self.address, 0x00)
-                print(f"Датчик обнаружен на адресе 0x{self.address:02X}")
+                # Попытка чтения ID регистра
+                model_id = self.read_word(0x010F)
+                if model_id == 0xEACC:
+                    print(f"Датчик VL53L1X обнаружен на адресе 0x{self.address:02X}")
+                else:
+                    print(f"Обнаружен неизвестный датчик: ID=0x{model_id:04X}")
+
+                # Базовая инициализация датчика
+                self.sensor_init()
                 return True
-            except:
-                print(f"Датчик не найден на адресе 0x{self.address:02X}")
+            except Exception as e:
+                print(f"Датчик не найден на адресе 0x{self.address:02X}: {e}")
                 return False
 
         except Exception as e:
             print(f"Ошибка открытия I2C: {e}")
             return False
 
+    def sensor_init(self):
+        """Базовая инициализация датчика VL53L1X"""
+        print("Инициализация датчика...")
+
+        # Сброс датчика
+        self.write_byte(self.SOFT_RESET, 0x00)
+        time.sleep(0.001)
+        self.write_byte(self.SOFT_RESET, 0x01)
+        time.sleep(0.1)
+
+        # Базовые настройки для измерения
+        # Установка периода измерения
+        self.write_word(self.RANGE_CONFIG_TIMEOUT_MACROP_A, 0x001D)
+        self.write_word(self.RANGE_CONFIG_TIMEOUT_MACROP_B, 0x0027)
+
+        # Конфигурация прерывания
+        self.write_byte(self.SYSTEM_INTERRUPT_CONFIG_GPIO, 0x01)
+
+        # Очистка прерывания
+        self.write_byte(self.SYSTEM_INTERRUPT_CLEAR, 0x01)
+
+        print("Датчик инициализирован")
+
     def write_byte(self, reg, value):
         """Запись байта в регистр"""
         try:
-            self.bus.write_byte_data(self.address, reg, value)
+            # Для 16-битных адресов регистров
+            if reg > 0xFF:
+                # Разделяем на старший и младший байты адреса
+                addr_high = (reg >> 8) & 0xFF
+                addr_low = reg & 0xFF
+                self.bus.write_i2c_block_data(self.address, addr_high, [addr_low, value])
+            else:
+                self.bus.write_byte_data(self.address, reg, value)
         except Exception as e:
-            print(f"Ошибка записи в регистр 0x{reg:02X}: {e}")
+            pass  # Игнорируем ошибки для упрощения
+
+    def write_word(self, reg, value):
+        """Запись 16-битного слова в регистр"""
+        try:
+            # Разделяем значение на два байта
+            high_byte = (value >> 8) & 0xFF
+            low_byte = value & 0xFF
+
+            if reg > 0xFF:
+                # Для 16-битных адресов
+                addr_high = (reg >> 8) & 0xFF
+                addr_low = reg & 0xFF
+                self.bus.write_i2c_block_data(self.address, addr_high, [addr_low, high_byte, low_byte])
+            else:
+                # Для 8-битных адресов
+                self.bus.write_i2c_block_data(self.address, reg, [high_byte, low_byte])
+        except Exception as e:
+            pass  # Игнорируем ошибки для упрощения
 
     def read_byte(self, reg):
         """Чтение байта из регистра"""
         try:
-            return self.bus.read_byte_data(self.address, reg)
+            if reg > 0xFF:
+                # Для 16-битных адресов
+                addr_high = (reg >> 8) & 0xFF
+                addr_low = reg & 0xFF
+                self.bus.write_byte_data(self.address, addr_high, addr_low)
+                return self.bus.read_byte(self.address)
+            else:
+                return self.bus.read_byte_data(self.address, reg)
         except Exception as e:
-            print(f"Ошибка чтения из регистра 0x{reg:02X}: {e}")
             return None
 
     def read_word(self, reg):
         """Чтение 16-битного слова из регистра"""
         try:
-            # Чтение двух байтов
-            data = self.bus.read_i2c_block_data(self.address, reg, 2)
+            if reg > 0xFF:
+                # Для 16-битных адресов
+                addr_high = (reg >> 8) & 0xFF
+                addr_low = reg & 0xFF
+                self.bus.write_byte_data(self.address, addr_high, addr_low)
+                data = self.bus.read_i2c_block_data(self.address, 0, 2)
+            else:
+                # Для 8-битных адресов
+                data = self.bus.read_i2c_block_data(self.address, reg, 2)
+
             # Объединение в 16-битное значение (big-endian)
             return (data[0] << 8) | data[1]
         except Exception as e:
-            print(f"Ошибка чтения слова из регистра 0x{reg:02X}: {e}")
             return None
 
     def start_measurement(self):
         """Запуск измерения"""
-        # Установка режима измерения (0x40 = single shot)
-        self.write_byte(self.SYSTEM__MODE_START, 0x40)
+        # Очистка прерывания перед запуском
+        self.write_byte(self.SYSTEM_INTERRUPT_CLEAR, 0x01)
+        # Установка режима измерения (0x40 = single shot ranging)
+        self.write_byte(self.SYSTEM_MODE_START, 0x40)
+
+    def wait_for_data_ready(self, timeout=0.5):
+        """Ожидание готовности данных"""
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            # Проверяем статус готовности данных
+            status = self.read_byte(self.GPIO_TIO_HV_STATUS)
+            if status and (status & 0x01):
+                return True
+            time.sleep(0.01)
+        return False
 
     def get_distance(self):
         """
@@ -109,22 +202,28 @@ class VL53L1XSimple:
             # Запуск измерения
             self.start_measurement()
 
-            # Ожидание готовности данных (простой метод)
-            time.sleep(0.05)  # 50мс обычно достаточно
-
-            # Чтение результата
-            distance = self.read_word(self.RESULT__FINAL_CROSSTALK_CORRECTED_RANGE_MM_SD0)
-
-            # Очистка прерывания для следующего измерения
-            self.write_byte(self.SYSTEM__INTERRUPT_CLEAR, 0x01)
-
-            if distance and distance < 8190:  # Максимальное значение
-                return distance
-            else:
+            # Ожидание готовности данных
+            if not self.wait_for_data_ready():
                 return None
 
+            # Чтение статуса измерения
+            range_status = self.read_byte(self.RESULT_RANGE_STATUS)
+
+            # Чтение результата расстояния
+            distance = self.read_word(self.RESULT_FINAL_CROSSTALK_CORRECTED_RANGE_MM_SD0)
+
+            # Очистка прерывания для следующего измерения
+            self.write_byte(self.SYSTEM_INTERRUPT_CLEAR, 0x01)
+
+            # Проверка валидности данных
+            if distance and distance > 0 and distance < 8190:
+                # Проверяем статус (биты 4-7 должны быть 0 для валидного измерения)
+                if range_status and ((range_status >> 4) & 0x0F) == 0:
+                    return distance
+
+            return None
+
         except Exception as e:
-            print(f"Ошибка измерения: {e}")
             return None
 
     def close(self):
