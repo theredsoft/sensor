@@ -12,14 +12,19 @@ cd sensor
 # Настройка I2C (если еще не настроено)
 bash setup_i2c.sh
 
-# Установка только необходимых зависимостей
+# Вариант 1: Минимальная версия (САМАЯ НАДЕЖНАЯ!)
 python3 -m venv venv
 source venv/bin/activate
 pip install smbus2
 deactivate
-
-# Запуск минимальной версии (САМАЯ НАДЕЖНАЯ!)
 sudo venv/bin/python vl53l1x_minimal.py
+
+# Вариант 2: WiringPi версия (C или Python)
+make install     # Установка WiringPi
+make            # Компиляция C версии
+sudo ./vl53l1x_wiringpi  # Запуск C версии
+# или
+./run_wiringpi.sh  # Запуск Python WiringPi версии
 ```
 
 ### Альтернативная установка с автоматическим скриптом
@@ -237,6 +242,8 @@ for line in process.stdout:
 | Скрипт | Когда использовать | Зависимости |
 |--------|-------------------|-------------|
 | **vl53l1x_minimal.py** | ✅ САМЫЙ НАДЕЖНЫЙ - работает везде | Только smbus2 |
+| **vl53l1x_wiringpi** (C) | ⚡ Максимальная производительность | WiringPi библиотека |
+| vl53l1x_wiringpi.py | WiringPi Python версия | wiringpi Python |
 | vl53l1x_simple.py | Упрощенная версия | Только smbus2 |
 | vl53l1x_sensor_reader.py | Python ≤3.12 | Оригинальная vl53l1x |
 | vl53l1x_adafruit.py | Если нужны расширенные функции | Adafruit + lgpio |
